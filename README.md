@@ -1,6 +1,6 @@
 # Demo Project
 
-A small project for learing how to open pull requests.
+A small project for learning how to open pull requests.
 
 ## Getting Started
 
