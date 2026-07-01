@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API & MCP Usage Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f7; color: #1a1a1a; }
+.dash { background: #f5f5f7; min-height: 100vh; }
+.sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 48px; background: #fff; border-right: 0.5px solid rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 8px; z-index: 10; }
+.sidebar-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #888; font-size: 18px; cursor: pointer; }
+.sidebar-icon:hover, .sidebar-icon.active { background: #f0f0f2; color: #1a1a1a; }
+.main { margin-left: 48px; }
+.topbar { background: #fff; border-bottom: 0.5px solid rgba(0,0,0,0.1); padding: 0 24px; display: flex; }
+.topbar-tab { padding: 14px 16px; font-size: 13px; color: #888; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -0.5px; display: flex; align-items: center; gap: 6px; }
+.topbar-tab.active { color: #c2185b; border-bottom-color: #c2185b; font-weight: 500; }
+.topbar-tab:hover:not(.active) { color: #1a1a1a; }
+.content { padding: 24px; max-width: 900px; }
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+.page-title { font-size: 18px; font-weight: 500; color: #1a1a1a; }
+.page-sub { font-size: 13px; color: #888; margin-top: 2px; }
+.date-btn { background: #b5195c; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.date-btn:hover { background: #a3154f; }
+
+/* Date picker */
+.dp-overlay { display: none; position: fixed; inset: 0; z-index: 200; }
+.dp-overlay.open { display: block; }
+.dp-backdrop { position: absolute; inset: 0; }
+.dp-panel { position: absolute; right: 24px; top: 64px; background: #fff; border: 0.5px solid rgba(0,0,0,0.12); border-radius: 12px; min-width: 560px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.1); }
+.dp-presets { border-bottom: 0.5px solid rgba(0,0,0,0.08); }
+.dp-preset { padding: 11px 20px; font-size: 13px; color: #1a1a1a; cursor: pointer; }
+.dp-preset:hover { background: #f5f5f7; }
+.dp-preset.sel { color: #c2185b; font-weight: 500; background: #fce4ec; }
+.dp-calendars { display: flex; padding: 20px; gap: 0; }
+.dp-cal { flex: 1; }
+.dp-cal + .dp-cal { border-left: 0.5px solid rgba(0,0,0,0.08); padding-left: 20px; }
+.dp-cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.dp-cal-title { font-size: 13px; font-weight: 500; color: #1a1a1a; }
+.dp-nav { background: none; border: none; cursor: pointer; color: #888; font-size: 18px; padding: 2px 6px; border-radius: 6px; line-height: 1; }
+.dp-nav:hover { background: #f0f0f2; }
+.dp-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; }
+.dp-dow { font-size: 11px; color: #888; text-align: center; padding: 4px 0; }
+.dp-day { font-size: 12px; text-align: center; padding: 5px 2px; cursor: pointer; color: #1a1a1a; user-select: none; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+.dp-day:hover:not(.empty):not(.range-start):not(.range-end) { background: #fce4ec; color: #c2185b; }
+.dp-day.empty { cursor: default; }
+.dp-day.in-range { background: #fce4ec; color: #c2185b; border-radius: 0; }
+.dp-day.range-start { background: #c2185b; color: #fff; border-radius: 50% 0 0 50%; }
+.dp-day.range-end { background: #c2185b; color: #fff; border-radius: 0 50% 50% 0; }
+.dp-day.range-start.range-end { border-radius: 50%; }
+.dp-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 20px; border-top: 0.5px solid rgba(0,0,0,0.08); }
+.dp-cancel { background: none; border: 0.5px solid rgba(0,0,0,0.15); border-radius: 8px; padding: 7px 16px; font-size: 13px; cursor: pointer; color: #1a1a1a; }
+.dp-cancel:hover { background: #f5f5f7; }
+.dp-apply { background: #c2185b; color: #fff; border: none; border-radius: 8px; padding: 7px 16px; font-size: 13px; cursor: pointer; font-weight: 500; }
+.dp-apply:hover { background: #a3154f; }
+
+/* Tooltips */
+.section-header { display: flex; align-items: center; gap: 6px; margin-bottom: 16px; }
+.section-title { font-size: 14px; font-weight: 500; color: #1a1a1a; }
+.info-icon { color: #aaa; font-size: 14px; cursor: pointer; position: relative; display: inline-block; vertical-align: middle; }
+.tooltip-box { display: none; position: absolute; left: 24px; top: -8px; background: #1a1a2e; border-radius: 8px; padding: 14px 16px; font-size: 13px; color: #e8e8f0; width: 300px; z-index: 1000; line-height: 1.6; pointer-events: none; }
+.tooltip-box strong { color: #fff; font-weight: 500; }
+.info-icon:hover .tooltip-box { display: block; }
+
+/* Cards */
+.cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 20px; }
+.card { background: #fff; border: 0.5px solid rgba(0,0,0,0.1); border-radius: 12px; padding: 16px 20px; }
+.card-label { font-size: 13px; color: #1a1a1a; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
+.card-value { font-size: 22px; font-weight: 500; color: #3b4de0; }
+.card-period { font-size: 12px; color: #888; margin-top: 4px; }
+
+/* Chart cards */
+.chart-card { background: #fff; border: 0.5px solid rgba(0,0,0,0.1); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.chart-title { font-size: 13px; font-weight: 500; color: #1a1a1a; }
+.chart-sub { font-size: 12px; color: #888; margin-top: 2px; }
+.tabs { display: flex; border-bottom: 0.5px solid rgba(0,0,0,0.08); margin-bottom: 16px; }
+.tab { padding: 8px 14px; font-size: 13px; color: #888; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -0.5px; }
+.tab.active { color: #c2185b; border-bottom-color: #c2185b; font-weight: 500; }
+.tab:hover:not(.active) { color: #1a1a1a; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 14px; font-size: 12px; color: #888; }
+.legend-item { display: flex; align-items: center; gap: 5px; }
+.legend-line { width: 20px; height: 2px; border-radius: 1px; }
+.filter-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.pill { padding: 4px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; border: 0.5px solid rgba(0,0,0,0.15); color: #888; background: #fff; }
+.pill.active { background: #c2185b; color: #fff; border-color: #c2185b; }
+.pill:hover:not(.active) { background: #f5f5f7; }
+
+/* Search */
+.search-wrap { position: relative; display: inline-block; margin-bottom: 14px; }
+.search-wrap input { padding: 8px 16px 8px 36px; font-size: 13px; border: 0.5px solid rgba(0,0,0,0.15); border-radius: 20px; width: 240px; background: #fff; color: #1a1a1a; outline: none; }
+.search-wrap input:focus { border-color: #c2185b; }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #aaa; font-size: 14px; pointer-events: none; line-height: 1; }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { text-align: left; padding: 8px 12px; color: #888; font-weight: 400; border-bottom: 0.5px solid rgba(0,0,0,0.08); font-size: 12px; cursor: pointer; user-select: none; }
+thead th:last-child { text-align: right; }
+thead th:hover { color: #1a1a1a; }
+tbody tr { border-bottom: 0.5px solid rgba(0,0,0,0.06); }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #fafafa; }
+tbody td { padding: 10px 12px; color: #1a1a1a; }
+tbody td:last-child { text-align: right; color: #888; }
+.sort-icon { font-size: 11px; margin-left: 3px; }
+.empty-state { text-align: center; padding: 40px 20px; color: #aaa; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="dash">
+  <div class="sidebar">
+    <div class="sidebar-icon active" title="Overview"><i class="ti ti-layout-dashboard"></i></div>
+    <div class="sidebar-icon" title="People"><i class="ti ti-users"></i></div>
+    <div class="sidebar-icon" title="Search"><i class="ti ti-search"></i></div>
+    <div style="margin-top:auto"></div>
+    <div class="sidebar-icon" title="History"><i class="ti ti-history"></i></div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-tab"><i class="ti ti-layout-grid" style="font-size:14px"></i> Overview</div>
+      <div class="topbar-tab"><i class="ti ti-users" style="font-size:14px"></i> People</div>
+      <div class="topbar-tab active"><i class="ti ti-plug" style="font-size:14px"></i> API & MCP</div>
+    </div>
+
+    <div class="content" style="position:relative;">
+      <div class="page-header">
+        <div>
+          <div class="page-title">API & MCP usage</div>
+          <div class="page-sub">Usage summary for your organisation</div>
+        </div>
+        <button class="date-btn" id="dateBtn" onclick="openDatePicker()">
+          <span id="dateLabel">Last 30 days</span>
+          <i class="ti ti-chevron-down"></i>
+        </button>
+      </div>
+
+      <!-- Metered usage -->
+      <div style="margin-bottom:24px;">
+        <div class="section-header">
+          <span class="section-title">Metered usage</span>
+          <span class="info-icon"><i class="ti ti-info-circle"></i>
+            <div class="tooltip-box"><strong>Metered usage</strong> — This section shows all programmatic usage made via API tokens. All activity shown counts towards your purchased API consumption quota. Please refer to your contract or contact your GWI Account Manager for details of your agreed quota.</div>
+          </span>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <div class="card-label">Spark API calls <span class="info-icon" style="font-size:13px;"><i class="ti ti-info-circle"></i><div class="tooltip-box"><strong>Spark API</strong> — Includes REST API calls used in custom applications, agents, and automations.</div></span></div>
+            <div class="card-value" id="sparkVal">29.6k</div>
+            <div class="card-period" id="sparkPeriod">Last 30 days</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Spark MCP API calls <span class="info-icon" style="font-size:13px;"><i class="ti ti-info-circle"></i><div class="tooltip-box"><strong>Spark MCP API</strong> — Token-based Spark MCP integration calls used in custom agents and MCP clients.</div></span></div>
+            <div class="card-value" id="mcpApiVal">29.6k</div>
+            <div class="card-period" id="mcpApiPeriod">Last 30 days</div>
+          </div>
+          <div class="card">
+            <div class="card-label">Platform API calls <span class="info-icon" style="font-size:13px;"><i class="ti ti-info-circle"></i><div class="tooltip-box"><strong>Platform API</strong> — Platform API requests used to retrieve raw GWI data programmatically.</div></span></div>
+            <div class="card-value" id="platformVal">29.6k</div>
+            <div class="card-period" id="platformPeriod">Last 30 days</div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div style="margin-bottom:14px;">
+            <div class="chart-title">API usage overtime</div>
+            <div class="chart-sub">API call trends across the selected period</div>
+          </div>
+          <div class="tabs" id="apiTimeTabs">
+            <div class="tab active" onclick="setApiTab(this,'weekly')">Weekly</div>
+            <div class="tab" onclick="setApiTab(this,'daily')">Daily</div>
+            <div class="tab" onclick="setApiTab(this,'monthly')">Monthly</div>
+          </div>
+          <div class="filter-pills">
+            <div class="pill active" onclick="togglePill(this,'spark')">Spark API</div>
+            <div class="pill active" onclick="togglePill(this,'sparkmcp')">Spark MCP API</div>
+            <div class="pill active" onclick="togglePill(this,'platform')">Platform API</div>
+          </div>
+          <div style="position:relative;height:220px;"><canvas id="apiChart" aria-label="Line chart of API call volume over time"></canvas></div>
+          <div class="legend">
+            <span class="legend-item"><span class="legend-line" style="background:#5c6bc0"></span>Spark API</span>
+            <span class="legend-item"><span class="legend-line" style="background:#ec407a"></span>Spark MCP API</span>
+            <span class="legend-item"><span class="legend-line" style="background:#26a69a"></span>Platform API</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- MCP connector usage -->
+      <div>
+        <div class="section-header">
+          <span class="section-title">MCP connector usage</span>
+          <span class="info-icon"><i class="ti ti-info-circle"></i>
+            <div class="tooltip-box"><strong>MCP connector usage</strong> — This section shows usage of licensed AI integrations (e.g. ChatGPT, Claude). Activity shown here is licensed on a per-user basis and does not count towards your API consumption quota. This section does not include any programmatic usage made via API tokens.</div>
+          </span>
+        </div>
+
+        <div class="chart-card">
+          <div style="margin-bottom:14px;">
+            <div class="chart-title">MCP connector usage overtime</div>
+            <div class="chart-sub">MCP connector call trends across the selected period</div>
+          </div>
+          <div class="tabs" id="mcpTimeTabs">
+            <div class="tab active" onclick="setMcpTab(this,'weekly')">Weekly</div>
+            <div class="tab" onclick="setMcpTab(this,'daily')">Daily</div>
+            <div class="tab" onclick="setMcpTab(this,'monthly')">Monthly</div>
+          </div>
+          <div style="position:relative;height:200px;"><canvas id="mcpChart" aria-label="Line chart of MCP connector call volume over time"></canvas></div>
+          <div class="legend">
+            <span class="legend-item"><span class="legend-line" style="background:#5c6bc0"></span>MCP connector calls</span>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-title" style="margin-bottom:4px;">MCP connector calls by user</div>
+          <div class="chart-sub" style="margin-bottom:14px;">Calls made by individual users to LLMs included in your seat-based plan across the selected period</div>
+          <div class="search-wrap">
+            <i class="ti ti-search search-icon"></i>
+            <input type="text" placeholder="Search by name or email…" id="userSearch" oninput="filterUsers()" aria-label="Search users">
+          </div>
+          <table>
+            <thead><tr>
+              <th onclick="sortTable('name')">Name <span class="sort-icon" id="sort-name">↕</span></th>
+              <th onclick="sortTable('email')">Email <span class="sort-icon" id="sort-email">↕</span></th>
+              <th onclick="sortTable('calls')">MCP calls <span class="sort-icon" id="sort-calls">↓</span></th>
+            </tr></thead>
+            <tbody id="userBody"></tbody>
+          </table>
+          <div id="emptyState" class="empty-state" style="display:none;"><i class="ti ti-search" style="font-size:28px;margin-bottom:8px;display:block;"></i>No users match your search.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Date picker -->
+<div class="dp-overlay" id="dpOverlay">
+  <div class="dp-backdrop" onclick="closeDatePicker()"></div>
+  <div class="dp-panel">
+    <div class="dp-presets">
+      <div class="dp-preset" data-range="Last 7 days" onclick="selectPreset(this)">Last 7 days</div>
+      <div class="dp-preset sel" data-range="Last 30 days" onclick="selectPreset(this)">Last 30 days</div>
+      <div class="dp-preset" data-range="Last 90 days" onclick="selectPreset(this)">Last 90 days</div>
+      <div class="dp-preset" data-range="All time" onclick="selectPreset(this)">All time</div>
+      <div class="dp-preset" data-range="Custom" onclick="selectPreset(this)">Custom</div>
+    </div>
+    <div id="dpCalendars" style="display:none;">
+      <div class="dp-calendars">
+        <div class="dp-cal" id="calLeft"></div>
+        <div class="dp-cal" id="calRight"></div>
+      </div>
+      <div class="dp-footer">
+        <button class="dp-cancel" onclick="cancelCustom()">Cancel</button>
+        <button class="dp-apply" onclick="applyCustom()">Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const userData=[{name:'Alex Thompson',email:'a.thompson@gwi.com',calls:10000},{name:'Sarah Chen',email:'s.chen@gwi.com',calls:9842},{name:'Marcus Reid',email:'m.reid@gwi.com',calls:8650},{name:'Priya Kapoor',email:'p.kapoor@gwi.com',calls:7210},{name:'James O\'Brien',email:'j.obrien@gwi.com',calls:6540},{name:'Lucia Martínez',email:'l.martinez@gwi.com',calls:5100},{name:'David Park',email:'d.park@gwi.com',calls:3300},{name:'Emma Wilson',email:'e.wilson@gwi.com',calls:2870}];
+let sortCol='calls',sortDir=-1,currentDateRange='Last 30 days',apiGranularity='weekly',mcpGranularity='weekly';
+let activeFilters={spark:true,sparkmcp:true,platform:true};
+let apiChartInst,mcpChartInst;
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS_SHORT=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DAYS_SHORT=['Mo','Tu','We','Th','Fr','Sa','Su'];
+let calViewLeft={y:2026,m:4},calViewRight={y:2026,m:5},rangeStart=null,rangeEnd=null;
+
+function fmtDate(d){return`${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;}
+function fmtCustomRange(s,e){const sy=s.getFullYear(),ey=e.getFullYear();return sy===ey?`${fmtDate(s)} - ${e.getDate()} ${MONTHS[e.getMonth()]}, ${ey}`:`${fmtDate(s)}, ${sy} - ${e.getDate()} ${MONTHS[e.getMonth()]}, ${ey}`;}
+function openDatePicker(){document.getElementById('dpOverlay').classList.add('open');}
+function closeDatePicker(){document.getElementById('dpOverlay').classList.remove('open');}
+function selectPreset(el){document.querySelectorAll('.dp-preset').forEach(p=>p.classList.remove('sel'));el.classList.add('sel');const range=el.dataset.range;if(range==='Custom'){document.getElementById('dpCalendars').style.display='block';renderBothCals();return;}document.getElementById('dpCalendars').style.display='none';applyDateRange(range);closeDatePicker();}
+function cancelCustom(){document.getElementById('dpCalendars').style.display='none';rangeStart=null;rangeEnd=null;}
+function applyCustom(){if(rangeStart&&rangeEnd){const label=fmtCustomRange(rangeStart,rangeEnd);document.getElementById('dateLabel').textContent=label;['sparkPeriod','mcpApiPeriod','platformPeriod'].forEach(id=>document.getElementById(id).textContent=label);['sparkVal','mcpApiVal','platformVal'].forEach(id=>document.getElementById(id).textContent='—');}closeDatePicker();}
+function applyDateRange(range){currentDateRange=range;document.getElementById('dateLabel').textContent=range;const vals={'Last 7 days':['2.1k','2.0k','2.3k'],'Last 30 days':['29.6k','29.6k','29.6k'],'Last 90 days':['88k','86k','90k'],'All time':['420k','405k','430k']};const v=vals[range]||['—','—','—'];document.getElementById('sparkVal').textContent=v[0];document.getElementById('mcpApiVal').textContent=v[1];document.getElementById('platformVal').textContent=v[2];['sparkPeriod','mcpApiPeriod','platformPeriod'].forEach(id=>document.getElementById(id).textContent=range);if(range==='Last 7 days'){apiGranularity='daily';mcpGranularity='daily';setTabActive('apiTimeTabs',1);setTabActive('mcpTimeTabs',1);}else if(range==='Last 90 days'||range==='All time'){apiGranularity='monthly';mcpGranularity='monthly';setTabActive('apiTimeTabs',2);setTabActive('mcpTimeTabs',2);}else{apiGranularity='weekly';mcpGranularity='weekly';setTabActive('apiTimeTabs',0);setTabActive('mcpTimeTabs',0);}buildApiChart();buildMcpChart();}
+function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
+function firstDow(y,m){let d=new Date(y,m,1).getDay();return d===0?6:d-1;}
+function renderCal(cid,view,side){const{y,m}=view,dim=daysInMonth(y,m),fd=firstDow(y,m);let h=`<div class="dp-cal-header">`;h+=side==='left'?`<button class="dp-nav" onclick="navCal(-1)">&#8249;</button>`:`<span></span>`;h+=`<span class="dp-cal-title">${MONTHS[m]} ${y}</span>`;h+=side==='right'?`<button class="dp-nav" onclick="navCal(1)">&#8250;</button>`:`<span></span>`;h+=`</div><div class="dp-grid">`;DAYS_SHORT.forEach(d=>{h+=`<div class="dp-dow">${d}</div>`;});for(let i=0;i<fd;i++)h+=`<div class="dp-day empty"></div>`;for(let d=1;d<=dim;d++){const ts=new Date(y,m,d).getTime(),rs=rangeStart?rangeStart.getTime():null,re=rangeEnd?rangeEnd.getTime():null;let cls='dp-day';if(rs&&re){if(ts===rs&&ts===re)cls+=' range-start range-end';else if(ts===rs)cls+=' range-start';else if(ts===re)cls+=' range-end';else if(ts>rs&&ts<re)cls+=' in-range';}else if(rs&&ts===rs)cls+=' range-start range-end';h+=`<div class="${cls}" onclick="clickDay(${y},${m},${d})">${d}</div>`;}h+=`</div>`;document.getElementById(cid).innerHTML=h;}
+function renderBothCals(){renderCal('calLeft',calViewLeft,'left');renderCal('calRight',calViewRight,'right');}
+function navCal(dir){function step(v){let m=v.m+dir,y=v.y;if(m>11){m=0;y++;}if(m<0){m=11;y--;}return{y,m};}calViewLeft=step(calViewLeft);calViewRight=step(calViewRight);renderBothCals();}
+function clickDay(y,m,d){const date=new Date(y,m,d);if(!rangeStart||(rangeStart&&rangeEnd)){rangeStart=date;rangeEnd=null;}else{if(date<rangeStart){rangeEnd=rangeStart;rangeStart=date;}else rangeEnd=date;}renderBothCals();}
+function genData(seed,len){const r=[];let v=80+seed*30;for(let i=0;i<len;i++){v=Math.max(10,v+(Math.random()-0.48)*40);r.push(Math.round(v));}return r;}
+function getLabels(gran,range){if(gran==='monthly')return MONTHS_SHORT;if(gran==='weekly'){if(range==='Last 7 days')return['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];return Array.from({length:12},(_,i)=>`Wk ${i+1}`);}if(range==='Last 7 days')return Array.from({length:7},(_,i)=>`Day ${i+1}`);if(range==='Last 90 days')return Array.from({length:90},(_,i)=>`${i+1}`);return Array.from({length:30},(_,i)=>`${i+1}`);}
+function buildApiChart(){const labels=getLabels(apiGranularity,currentDateRange),ctx=document.getElementById('apiChart');if(apiChartInst)apiChartInst.destroy();const ds=[];if(activeFilters.spark)ds.push({label:'Spark API',data:genData(1,labels.length),borderColor:'#5c6bc0',backgroundColor:'rgba(92,107,192,0.06)',tension:0.4,pointRadius:2,borderWidth:2});if(activeFilters.sparkmcp)ds.push({label:'Spark MCP API',data:genData(2,labels.length),borderColor:'#ec407a',backgroundColor:'rgba(236,64,122,0.06)',tension:0.4,pointRadius:2,borderWidth:2});if(activeFilters.platform)ds.push({label:'Platform API',data:genData(0.5,labels.length),borderColor:'#26a69a',backgroundColor:'rgba(38,166,154,0.06)',tension:0.4,pointRadius:2,borderWidth:2});apiChartInst=new Chart(ctx,{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toLocaleString()}`}}},scales:{x:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11},color:'#aaa',autoSkip:true,maxTicksLimit:12}},y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11},color:'#aaa',callback:v=>v>999?Math.round(v/1000)+'k':v}}},interaction:{mode:'index',intersect:false}}});}
+function buildMcpChart(){const labels=getLabels(mcpGranularity,currentDateRange),ctx=document.getElementById('mcpChart');if(mcpChartInst)mcpChartInst.destroy();mcpChartInst=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'MCP connector calls',data:genData(1.5,labels.length),borderColor:'#5c6bc0',backgroundColor:'rgba(92,107,192,0.06)',tension:0.4,pointRadius:2,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`MCP connector calls: ${c.parsed.y.toLocaleString()}`}}},scales:{x:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11},color:'#aaa',autoSkip:true,maxTicksLimit:12}},y:{grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11},color:'#aaa',callback:v=>v>999?Math.round(v/1000)+'k':v}}},interaction:{mode:'index',intersect:false}}});}
+function setTabActive(id,idx){document.getElementById(id).querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===idx));}
+function setApiTab(el,gran){apiGranularity=gran;document.getElementById('apiTimeTabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');buildApiChart();}
+function setMcpTab(el,gran){mcpGranularity=gran;document.getElementById('mcpTimeTabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');buildMcpChart();}
+function togglePill(el,key){activeFilters[key]=!activeFilters[key];el.classList.toggle('active',activeFilters[key]);buildApiChart();}
+function renderUsers(list){const body=document.getElementById('userBody'),empty=document.getElementById('emptyState');body.innerHTML='';if(!list.length){empty.style.display='block';return;}empty.style.display='none';list.forEach(u=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${u.name}</td><td style="color:#888">${u.email}</td><td>${u.calls.toLocaleString()}</td>`;body.appendChild(tr);});}
+function filterUsers(){const q=document.getElementById('userSearch').value.toLowerCase();renderUsers(sortData(userData.filter(u=>u.name.toLowerCase().includes(q)||u.email.toLowerCase().includes(q))));}
+function sortData(arr){return[...arr].sort((a,b)=>sortDir*(a[sortCol]>b[sortCol]?1:a[sortCol]<b[sortCol]?-1:0));}
+function sortTable(col){if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=-1;}['name','email','calls'].forEach(c=>{document.getElementById('sort-'+c).textContent=c===col?(sortDir===-1?'↓':'↑'):'↕';});filterUsers();}
+
+const now=new Date();
+calViewLeft={y:now.getFullYear(),m:now.getMonth()===0?11:now.getMonth()-1};
+calViewRight={y:now.getFullYear(),m:now.getMonth()};
+renderBothCals();
+renderUsers(sortData(userData));
+buildApiChart();
+buildMcpChart();
+</script>
+</body>
+</html>
